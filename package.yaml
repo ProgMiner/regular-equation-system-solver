@@ -1,0 +1,46 @@
+name:                regular-equation-system-solver
+version:             0.1.0.0
+github:              "ProgMiner/regular-equation-system-solver"
+license:             BSD3
+author:              "Eridan Domoratskiy"
+maintainer:          "eridan200@mail.ru"
+copyright:           "Copyright (c) Eridan Domoratskiy"
+
+extra-source-files: []
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/ProgMiner/regular-equation-system-solver#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+
+library:
+  source-dirs: src
+
+executables:
+  regular-equation-system-solver-exe:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - regular-equation-system-solver
+
+tests:
+  regular-equation-system-solver-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - regular-equation-system-solver

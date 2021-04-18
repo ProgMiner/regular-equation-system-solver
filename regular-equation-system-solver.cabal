@@ -1,0 +1,58 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.33.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: e0e504a0a940a8b052802d3a5da3e1832bbe3bf8559f909cb51ec3a93c254d82
+
+name:           regular-equation-system-solver
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/ProgMiner/regular-equation-system-solver#readme>
+homepage:       https://github.com/ProgMiner/regular-equation-system-solver#readme
+bug-reports:    https://github.com/ProgMiner/regular-equation-system-solver/issues
+author:         Eridan Domoratskiy
+maintainer:     eridan200@mail.ru
+copyright:      Copyright (c) Eridan Domoratskiy
+license:        BSD3
+build-type:     Simple
+
+source-repository head
+  type: git
+  location: https://github.com/ProgMiner/regular-equation-system-solver
+
+library
+  exposed-modules:
+      RegularES
+  other-modules:
+      Paths_regular_equation_system_solver
+  hs-source-dirs:
+      src
+  build-depends:
+      base >=4.7 && <5
+  default-language: Haskell2010
+
+executable regular-equation-system-solver-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_regular_equation_system_solver
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , regular-equation-system-solver
+  default-language: Haskell2010
+
+test-suite regular-equation-system-solver-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_regular_equation_system_solver
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , regular-equation-system-solver
+  default-language: Haskell2010
