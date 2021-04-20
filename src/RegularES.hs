@@ -1,5 +1,8 @@
 module RegularES where
 
+import Data.List (foldl', foldl1', sort, group)
+import Debug.Trace
+
 
 data RegExp
     = REVar String
@@ -50,10 +53,10 @@ fromExtendedRE
 fromExtendedRE = fromEREUnion where
 
     fromEREUnion :: ExtREUnion -> RegExp
-    fromEREUnion (EREUnion e) = foldl1 REUnion $ map fromEREConcat e
+    fromEREUnion (EREUnion e) = foldl1' REUnion $ map fromEREConcat e
 
     fromEREConcat :: ExtREConcat -> RegExp
-    fromEREConcat (EREConcat e) = foldl1 REConcat $ map fromERETerm e
+    fromEREConcat (EREConcat e) = foldl1' REConcat $ map fromERETerm e
 
     fromERETerm :: ExtRETerm -> RegExp
     fromERETerm (EREVar var) = REVar var
@@ -75,12 +78,51 @@ findTermsBySuffix suffix exp = [fromExtendedRE $ EREUnion $ [EREConcat e]
     isSuffix as bs = isPrefix (reverse as) (reverse bs)
 
     isPrefix :: (Eq a) => [a] -> [a] -> Bool
-    isPrefix []      _     = True
-    isPrefix _       []    = False
+    isPrefix  []     _     = True
+    isPrefix  _      []    = False
     isPrefix (a:as) (b:bs) = (a == b) && (isPrefix as bs)
+
+listREVars :: RegExp -> [String]
+listREVars (REVar var) = [var]
+listREVars (REStr _  ) = []
+listREVars (REConcat a b) = listREVars a ++ listREVars b
+listREVars (REUnion  a b) = listREVars a ++ listREVars b
+listREVars (REIteration exp) = listREVars exp
+
+-- sortRESystem    -- sort RegEq system in solving order
+--     :: String       -- starting state
+--     -> RegularES    -- source system
+--     -> RegularES    -- sorted system (from reg eq w/o deps)
+-- sortRESystem start system = reverse $ snd $ dfsFromVariable ([], []) start where
+--
+--     dfsFromVariable :: ([String], RegularES) -> String -> ([String], RegularES)
+--     dfsFromVariable (visited, ans) var | var `elem` visited = (visited, ans)
+--     dfsFromVariable acc            var | otherwise          = dfs acc eq where
+--         (Just eq) = ((,) var) <$> lookup var system
+--
+--     dfs :: ([String], RegularES) -> RegEq -> ([String], RegularES)
+--     dfs (visited, ans) (var, exp) = (newVisited, (var, exp):newAns) where
+--         (newVisited, newAns) = foldl' dfsFromVariable (var:visited, ans) $ listREVars exp
+
+sortRESystem    -- sort RegEq system in solving order
+    :: String       -- starting state
+    -> RegularES    -- source system
+    -> RegularES    -- sorted system (from reg eq w/o deps)
+sortRESystem start system = sortRESystem' [start] [] where
+
+    sortRESystem' :: [String] -> RegularES -> RegularES
+    sortRESystem' []      visited = visited
+    sortRESystem' current visited = sortRESystem' next (result ++ visited) where
+        (Just eqs) = mapM (flip lookup system) current
+        next = map head $ group $ sort $ filter (flip notElem current)
+            . filter (flip notElem $ map fst visited) . listREVars =<< eqs
+        result = zip current eqs
 
 solveForVariable :: String -> RegularES -> RegExp
 solveForVariable var system = undefined
 
 solve :: RegularES -> RegularES
 solve system = undefined
+
+traceMsgShowId :: (Show a) => String -> a -> a
+traceMsgShowId msg x = trace (msg ++ show x) x
