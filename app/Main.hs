@@ -1,6 +1,12 @@
-module Main where
+module Main (main) where
+
+import Prelude hiding (lex)
+import System.Environment (getArgs, getProgName)
+import Data.Maybe (listToMaybe, fromMaybe)
 
 import RegularES
+import Parser
+import Lexer
 
 
 test1 =
@@ -26,4 +32,25 @@ test2 =
     ]
 
 main :: IO ()
-main = undefined
+main = do
+    args <- getArgs
+
+    case args of
+        (filename:args1) -> runFile filename (listToMaybe args1)
+        _ -> ("Usage: " ++) <$> (++ " <filename> [starting state]") <$> getProgName >>= putStrLn
+
+runFile :: String -> Maybe String -> IO ()
+runFile filename start = do
+    file <- readFile filename
+
+    case lex file >>= parse of
+        (Right res) -> case res of
+            [] -> putStrLn "No one equations presented"
+            ((firstState, _):_) -> do
+                putStrLn "Input:"
+                mapM_ (putStr . showRegEq) res
+
+                let startState = fromMaybe firstState start
+                let solution = solveForVariable startState res
+                putStrLn $ "Solution for state " ++ startState ++ ": " ++ humanifyRegExp solution
+        (Left err) -> putStrLn err

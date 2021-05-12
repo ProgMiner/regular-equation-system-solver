@@ -1,4 +1,13 @@
-module RegularES where
+module RegularES
+    ( solveForVariable
+    , solve
+    , showRegEq
+    , showRegExp
+    , humanifyRegExp
+    , RegExp (..)
+    , RegEq
+    , RegularES
+    ) where
 
 import Data.List (foldl', foldl1', sort, group)
 import Data.Maybe (fromMaybe)
@@ -181,6 +190,3 @@ humanifyRegExp (REConcat a b) = wrap a ++ wrap b where
     wrap exp = humanifyRegExp exp
 
 humanifyRegExp (REIteration a) = "(" ++ humanifyRegExp a ++ ")*"
-
-traceMsgShowId :: (Show a) => String -> a -> a
-traceMsgShowId msg x = trace (msg ++ show x) x

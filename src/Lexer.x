@@ -43,7 +43,7 @@ posStrToken f (pos, _, _, str) len = return $ TW $ f pos $ take len str
 
 stringToken :: (String -> Token) -> AlexAction TokenWrapper
 stringToken f ((AlexPn _ line column), _, _, str) len =
-    case parseString $ take len $ tail $ init str of
+    case parseString $ init $ tail $ take len str of
         Right s     -> return $ TW $ f s
         Left (i, c) -> alexError $ "undefined escape sequence \\"
             ++ c:" at " ++ show line ++ ':':show (column + i)
