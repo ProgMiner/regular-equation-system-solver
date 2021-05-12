@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 7ed3f6297823d0b2de7bd89b58815d87b5f5c3ecd92bc2bbe6401be0d81ecd86
+-- hash: adef2bd3085afecfceb56e4691747aab79551c46dbab5397f130fcc083d14083
 
 name:           regular-equation-system-solver
 version:        0.1.0.0
@@ -27,6 +27,7 @@ source-repository head
 library
   exposed-modules:
       Lexer
+      Parser
       RegularES
       Token
   other-modules:
