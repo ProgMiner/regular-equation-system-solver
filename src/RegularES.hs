@@ -1,6 +1,7 @@
 module RegularES where
 
 import Data.List (foldl', foldl1', sort, group)
+import Data.Maybe (fromMaybe)
 import Debug.Trace
 
 
@@ -10,7 +11,7 @@ data RegExp
     | REConcat RegExp RegExp
     | REUnion RegExp RegExp
     | REIteration RegExp
-    deriving (Show, Eq)
+    deriving (Show, Read, Eq)
 
 type RegEq = (String, RegExp)
 type RegularES = [RegEq]
@@ -25,15 +26,8 @@ newtype ExtREConcat = EREConcat [ExtRETerm] deriving (Show, Eq)
 newtype ExtREUnion = EREUnion [ExtREConcat] deriving (Show, Eq)
 type ExtRE = ExtREUnion
 
-toExtendedRETerm
-    :: RegExp       -- expression
-    -> ExtRETerm    -- extended expression term
-toExtendedRETerm (REVar       var) = EREVar var
-toExtendedRETerm (REStr       str) = EREStr str
-toExtendedRETerm (REIteration exp) = EREIteration $ toExtendedRE exp
-toExtendedRETerm exp               = error $ show exp ++ " is not an extended RE term"
 
-toExtendedRE
+toExtendedRE    -- convert RegExp to extended form
     :: RegExp   -- expression
     -> ExtRE    -- extended expression
 toExtendedRE = EREUnion . (map $ EREConcat . map toExtendedRETerm . concatList) . unionList where
@@ -47,7 +41,13 @@ toExtendedRE = EREUnion . (map $ EREConcat . map toExtendedRETerm . concatList) 
     concatList (REConcat a b) = concatList a ++ concatList b
     concatList exp = [exp]
 
-fromExtendedRE
+    toExtendedRETerm :: RegExp -> ExtRETerm
+    toExtendedRETerm (REVar       var) = EREVar var
+    toExtendedRETerm (REStr       str) = EREStr str
+    toExtendedRETerm (REIteration exp) = EREIteration $ toExtendedRE exp
+    toExtendedRETerm exp               = error $ show exp ++ " is not an extended RE term"
+
+fromExtendedRE  -- convert RegExp from extended form
     :: ExtRE    -- extended expression
     -> RegExp   -- expression
 fromExtendedRE = fromEREUnion where
@@ -63,7 +63,7 @@ fromExtendedRE = fromEREUnion where
     fromERETerm (EREStr str) = REStr str
     fromERETerm (EREIteration exp) = REIteration $ fromExtendedRE exp
 
-findTermsBySuffix
+findTermsBySuffix   -- find terms in RegExp by suffix(es)
     :: RegExp   -- suffix
     -> RegExp   -- expression
     -> [RegExp] -- grouped for suffix expression
@@ -82,27 +82,14 @@ findTermsBySuffix suffix exp = [fromExtendedRE $ EREUnion $ [EREConcat e]
     isPrefix  _      []    = False
     isPrefix (a:as) (b:bs) = (a == b) && (isPrefix as bs)
 
-listREVars :: RegExp -> [String]
+listREVars      -- list variables mentioned in RegExp
+    :: RegExp   -- regular expression
+    -> [String] -- list of variables
 listREVars (REVar var) = [var]
 listREVars (REStr _  ) = []
 listREVars (REConcat a b) = listREVars a ++ listREVars b
 listREVars (REUnion  a b) = listREVars a ++ listREVars b
 listREVars (REIteration exp) = listREVars exp
-
--- sortRESystem    -- sort RegEq system in solving order
---     :: String       -- starting state
---     -> RegularES    -- source system
---     -> RegularES    -- sorted system (from reg eq w/o deps)
--- sortRESystem start system = reverse $ snd $ dfsFromVariable ([], []) start where
---
---     dfsFromVariable :: ([String], RegularES) -> String -> ([String], RegularES)
---     dfsFromVariable (visited, ans) var | var `elem` visited = (visited, ans)
---     dfsFromVariable acc            var | otherwise          = dfs acc eq where
---         (Just eq) = ((,) var) <$> lookup var system
---
---     dfs :: ([String], RegularES) -> RegEq -> ([String], RegularES)
---     dfs (visited, ans) (var, exp) = (newVisited, (var, exp):newAns) where
---         (newVisited, newAns) = foldl' dfsFromVariable (var:visited, ans) $ listREVars exp
 
 sortRESystem    -- sort RegEq system in solving order
     :: String       -- starting state
@@ -118,11 +105,82 @@ sortRESystem start system = sortRESystem' [start] [] where
             . filter (flip notElem $ map fst visited) . listREVars =<< eqs
         result = zip current eqs
 
+substituteVariable :: RegEq -> RegExp -> RegExp
+substituteVariable (var, src) dst@(REVar v) = if v == var then src else dst
+substituteVariable  _         dst@(REStr _) = dst
+substituteVariable eq (REConcat a b) = REConcat (substituteVariable eq a) (substituteVariable eq b)
+substituteVariable eq (REUnion a b)  = REUnion  (substituteVariable eq a) (substituteVariable eq b)
+substituteVariable eq (REIteration a) = REIteration $ substituteVariable eq a
+
+simplifyEquation :: RegEq -> RegEq
+simplifyEquation (var, exp) = (,) var $ fromMaybe exp result where
+    result = uncurry (REConcat . REIteration) <$> liftMaybePair (splitBySuffix exp)
+
+    liftMaybePair :: (Maybe a, Maybe b) -> Maybe (a, b)
+    liftMaybePair (Just a, Just b) = Just (a, b)
+    liftMaybePair  _               = Nothing
+
+    splitBySuffix :: RegExp -> (Maybe RegExp, Maybe RegExp)
+    splitBySuffix exp@(REVar v) = if v == var then (Just $ REStr "", Nothing) else (Nothing, Just exp)
+    splitBySuffix exp@(REStr _) = (Nothing, Just exp)
+    splitBySuffix exp@(REUnion a b) = merge (splitBySuffix a) (splitBySuffix b) where
+
+        merge :: (Maybe RegExp, Maybe RegExp) -> (Maybe RegExp, Maybe RegExp)
+            -> (Maybe RegExp, Maybe RegExp)
+        merge (Just al, Just ar) (Just bl, Just br) = (Just $ REUnion al bl, Just $ REUnion ar br)
+        merge (Just al, Just ar) (Just bl, Nothing) = (Just $ REUnion al bl, Just           ar   )
+        merge (Just al, Just ar) (Nothing, Just br) = (Just           al   , Just $ REUnion ar br)
+        merge (Just al, Just ar) (Nothing, Nothing) = (Just           al   , Just           ar   )
+        merge (Just al, Nothing) (Just bl, Just br) = (Just $ REUnion al bl, Just              br)
+        merge (Just al, Nothing) (Just bl, Nothing) = (Just $ REUnion al bl, Nothing             )
+        merge (Just al, Nothing) (Nothing, Just br) = (Just           al   , Just              br)
+        merge (Just al, Nothing) (Nothing, Nothing) = (Just           al   , Nothing             )
+        merge (Nothing, Just ar) (Just bl, Just br) = (Just              bl, Just $ REUnion ar br)
+        merge (Nothing, Just ar) (Just bl, Nothing) = (Just              bl, Just           ar   )
+        merge (Nothing, Just ar) (Nothing, Just br) = (Nothing             , Just $ REUnion ar br)
+        merge (Nothing, Just ar) (Nothing, Nothing) = (Nothing             , Just           ar   )
+        merge (Nothing, Nothing) (Just bl, Just br) = (Just              bl, Just              br)
+        merge (Nothing, Nothing) (Just bl, Nothing) = (Just              bl, Nothing             )
+        merge (Nothing, Nothing) (Nothing, Just br) = (Nothing             , Just              br)
+        merge (Nothing, Nothing) (Nothing, Nothing) = (Nothing             , Nothing             )
+
+    splitBySuffix exp@(REConcat a b) = (REConcat a <$> bl, REConcat a <$> br) where
+        (bl, br) = splitBySuffix b
+
+    splitBySuffix exp@(REIteration _) = (Nothing, Just exp)
+
 solveForVariable :: String -> RegularES -> RegExp
-solveForVariable var system = undefined
+solveForVariable = ((snd . simplifyEquation . head . solveForVariable') .) . sortRESystem where
+
+    solveForVariable' :: RegularES -> RegularES
+    solveForVariable' system@[_]             = system
+    solveForVariable' (eq@(var, exp):system) = solveForVariable'
+        $ map (fmap $ substituteVariable $ simplifyEquation eq) system
 
 solve :: RegularES -> RegularES
 solve system = undefined
+
+showRegEq :: RegEq -> String
+showRegEq (var, exp) = var ++ " = " ++ showRegExp exp ++ "\n"
+
+showRegExp :: RegExp -> String
+showRegExp (REVar var) = var
+showRegExp (REStr str) = show str
+showRegExp (REUnion a b) = "(" ++ showRegExp a ++ " + " ++ showRegExp b ++ ")"
+showRegExp (REConcat a b) = "(" ++ showRegExp a ++ " . " ++ showRegExp b ++ ")"
+showRegExp (REIteration a) = "(" ++ showRegExp a ++ ")*"
+
+humanifyRegExp :: RegExp -> String
+humanifyRegExp (REVar var) = "(var " ++ var ++ ")"
+humanifyRegExp (REStr str) = str
+humanifyRegExp (REUnion a b) = humanifyRegExp a ++ "|" ++ humanifyRegExp b
+humanifyRegExp (REConcat a b) = wrap a ++ wrap b where
+
+    wrap :: RegExp -> String
+    wrap exp@(REUnion _ _) = "(" ++ humanifyRegExp exp ++ ")"
+    wrap exp = humanifyRegExp exp
+
+humanifyRegExp (REIteration a) = "(" ++ humanifyRegExp a ++ ")*"
 
 traceMsgShowId :: (Show a) => String -> a -> a
 traceMsgShowId msg x = trace (msg ++ show x) x
