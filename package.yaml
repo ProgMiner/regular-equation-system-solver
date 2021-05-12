@@ -6,7 +6,9 @@ author:              "Eridan Domoratskiy"
 maintainer:          "eridan200@mail.ru"
 copyright:           "Copyright (c) Eridan Domoratskiy"
 
-extra-source-files: []
+extra-source-files:
+- src/Lexer.x
+- src/Parser.y
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
@@ -19,6 +21,11 @@ description:         Please see the README on GitHub at <https://github.com/Prog
 
 dependencies:
 - base >= 4.7 && < 5
+- array
+
+build-tools:
+- happy
+- alex
 
 library:
   source-dirs: src
