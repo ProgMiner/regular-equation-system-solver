@@ -39,13 +39,16 @@ main = do
         (filename:args1) -> runFile filename (listToMaybe args1)
         _ -> ("Usage: " ++) <$> (++ " <filename> [starting state]") <$> getProgName >>= putStrLn
 
-runFile :: String -> Maybe String -> IO ()
+runFile
+    :: String       -- filename
+    -> Maybe String -- starting state
+    -> IO ()
 runFile filename start = do
     file <- readFile filename
 
     case lex file >>= parse of
         (Right res) -> case res of
-            [] -> putStrLn "No one equations presented"
+            [] -> putStrLn "No equations presented"
             ((firstState, _):_) -> do
                 putStrLn "Input:"
                 mapM_ (putStr . showRegEq) res
